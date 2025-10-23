@@ -6,3 +6,5 @@ This work's on almost all executor's if it doesn't i recommend using krnl.
 
 You can open the GUI with the red arrow on the left side of your screen.
 Also everything in this script is ClientSided, so no real harm is done.
+
+Still making it release should be soon
