@@ -8,4 +8,4 @@ You can open the GUI with the red arrow on the left side of your screen or by pr
 Tools like Knife, Katana etc kinda work, same with btools.
 Fly, TP, NoClip, and most of those modules are ServerSided/FE
 
-loadstring(game:HttpGet("https://github.com/Dialoging/c00lgui/blob/main/c00lgui.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Dialoging/c00lgui/refs/heads/main/c00lgui.lua"))()
