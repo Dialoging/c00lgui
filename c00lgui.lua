@@ -1,5 +1,3 @@
-can you add new modules to this with emotes named "chicken arms, jerk, and sit", chicken arms is where your arms flap around, sit is just the sitting animation, and jerk is like smacking your legs a bunch, add these to this script, also make the whole script simpler but still the exact same stuff?
-
 local Players = game:GetService("Players")
 local UserInput = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
