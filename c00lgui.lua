@@ -1207,4 +1207,4 @@ UserInput.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and input.KeyCode == Enum.KeyCode.RightShift then
         toggle()
     end
-end
+end)
