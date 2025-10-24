@@ -38,13 +38,13 @@ local Modules = {
         "Tools", "Equipment",
         "BTools", "Knife", "Sword", "Katana",
         "Scythe", "Ban Hammer", "Bomb", "Rocket",
-        "Gravity Gun", "Telekinesis", "Portal Gun", "Grapple Hook"
+        "Gravity Gun", "Telekinesis", "", ""
     },
     Page5 = {
-        "Weapons", "Combat Gear",
-        "Pistol", "Shotgun", "Rifle", "Sniper",
-        "RPG", "Minigun", "Bow", "Crossbow",
-        "Flamethrower", "Grenade", "Server List", ""
+        "Fun", "Misc",
+        "Seizure", "Freecam", "Server List", "",
+        "", "", "", "",
+        "", "", "", ""
     }
 }
 
@@ -95,19 +95,9 @@ local Tooltips = {
     ["Rocket"] = "Rocket launcher with explosives",
     ["Gravity Gun"] = "Manipulate objects with gravity",
     ["Telekinesis"] = "Move objects with your mind",
-    ["Portal Gun"] = "Create portals to teleport through",
-    ["Grapple Hook"] = "Hook and swing around the map",
     
-    ["Pistol"] = "Standard handgun for quick shots",
-    ["Shotgun"] = "Close range high damage weapon",
-    ["Rifle"] = "Automatic assault rifle",
-    ["Sniper"] = "Long range precision rifle",
-    ["RPG"] = "Rocket propelled grenade launcher",
-    ["Minigun"] = "High fire rate rotating barrel gun",
-    ["Bow"] = "Classic bow and arrow weapon",
-    ["Crossbow"] = "Medieval crossbow launcher",
-    ["Flamethrower"] = "Sprays deadly flames forward",
-    ["Grenade"] = "Throwable explosive grenade",
+    ["Seizure"] = "Make your character have a seizure server-side",
+    ["Freecam"] = "Move camera freely without moving character",
     ["Server List"] = "View all players in the server"
 }
 
@@ -120,19 +110,7 @@ local ToolIDs = {
     ["Bomb"] = 12884143,
     ["Rocket"] = 12844699,
     ["Gravity Gun"] = 92142841,
-    ["Telekinesis"] = 91360081,
-    ["Portal Gun"] = 142785488,
-    ["Grapple Hook"] = 88885539,
-    ["Pistol"] = 130113146,
-    ["Shotgun"] = 130113146,
-    ["Rifle"] = 130113146,
-    ["Sniper"] = 130113146,
-    ["RPG"] = 10468797,
-    ["Minigun"] = 130113146,
-    ["Bow"] = 88885539,
-    ["Crossbow"] = 142785488,
-    ["Flamethrower"] = 12884143,
-    ["Grenade"] = 12884143
+    ["Telekinesis"] = 91360081
 }
 
 local States = {
@@ -159,7 +137,9 @@ local States = {
     Tracers = false,
     TextureReplace = false,
     TargetPlayer = nil,
-    Orbiting = false
+    Orbiting = false,
+    Freecam = false,
+    Seizure = false
 }
 
 local ActiveButtons = {}
@@ -701,6 +681,85 @@ local function spinPlayer()
     end
 end
 
+local function startSeizure()
+    States.Seizure = true
+    while States.Seizure do
+        local h = hum()
+        if h then
+            h.PlatformStand = true
+            h.Sit = true
+            h.Jump = true
+            h.AutoRotate = false
+            h.WalkSpeed = 0
+            h.JumpPower = 0
+            local r = root()
+            r.AssemblyAngularVelocity = Vector3.new(math.random(-100,100), math.random(-100,100), math.random(-100,100))
+            r.AssemblyLinearVelocity = Vector3.new(math.random(-50,50), math.random(-50,50), math.random(-50,50))
+            for _,v in pairs(char():GetDescendants()) do
+                if v:IsA("Motor6D") then
+                    v.CurrentAngle = math.random(-180,180)
+                end
+            end
+        end
+        task.wait(0.1)
+    end
+end
+
+local function stopSeizure()
+    States.Seizure = false
+    local h = hum()
+    if h then
+        h.PlatformStand = false
+        h.Sit = false
+        h.Jump = false
+        h.AutoRotate = true
+        h.WalkSpeed = States.Walk
+        h.JumpPower = States.Jump
+    end
+end
+
+local function startFreecam()
+    States.Freecam = true
+    local camera = workspace.CurrentCamera
+    local originalCFrame = camera.CFrame
+    local originalSubject = camera.CameraSubject
+    camera.CameraType = Enum.CameraType.Scriptable
+    camera.CameraSubject = nil
+    
+    local speed = 50
+    local rotSpeed = 2
+    
+    local function updateCamera()
+        if not States.Freecam then return end
+        local cf = camera.CFrame
+        local move = Vector3.new(0,0,0)
+        
+        if UserInput:IsKeyDown(Enum.KeyCode.W) then move = move + cf.LookVector end
+        if UserInput:IsKeyDown(Enum.KeyCode.S) then move = move - cf.LookVector end
+        if UserInput:IsKeyDown(Enum.KeyCode.A) then move = move - cf.RightVector end
+        if UserInput:IsKeyDown(Enum.KeyCode.D) then move = move + cf.RightVector end
+        if UserInput:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0,1,0) end
+        if UserInput:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - Vector3.new(0,1,0) end
+        
+        local delta = UserInput:GetMouseDelta()
+        cf = cf * CFrame.Angles(0, -delta.X * rotSpeed * 0.01, 0)
+        cf = cf * CFrame.Angles(-delta.Y * rotSpeed * 0.01, 0, 0)
+        cf = cf + move * speed * 0.016
+        
+        camera.CFrame = cf
+    end
+    
+    local conn = RunService.RenderStepped:Connect(updateCamera)
+    
+    while States.Freecam do
+        task.wait()
+    end
+    
+    conn:Disconnect()
+    camera.CameraType = Enum.CameraType.Custom
+    camera.CameraSubject = originalSubject
+end
+
 local gui = Instance.new("ScreenGui", game.CoreGui)
 gui.Name = "c00lgui_dialoging"
 
@@ -785,6 +844,28 @@ local Grid = Instance.new("UIGridLayout", Content)
 Grid.CellSize = UDim2.new(0.5, 0, 0, 25)
 Grid.CellPadding = UDim2.new(0, 0, 0, 0)
 
+local InstantActions = {
+    ["Teleport To"] = true,
+    ["Bring Player"] = true,
+    ["BTools"] = true,
+    ["Knife"] = true,
+    ["Sword"] = true,
+    ["Katana"] = true,
+    ["Scythe"] = true,
+    ["Ban Hammer"] = true,
+    ["Bomb"] = true,
+    ["Rocket"] = true,
+    ["Gravity Gun"] = true,
+    ["Telekinesis"] = true,
+    ["Server Kill"] = true,
+    ["Fling Player"] = true,
+    ["Fling All"] = true,
+    ["Kill All"] = true,
+    ["Spin Player"] = true,
+    ["Remove Fog"] = true,
+    ["Server List"] = true
+}
+
 local function updatePage()
     for _,v in pairs(Content:GetChildren()) do
         if v:IsA("TextButton") or v:IsA("TextLabel") then v:Destroy() end
@@ -829,124 +910,17 @@ local function updatePage()
         end)
         
         btn.MouseButton1Click:Connect(function()
-            local toggled = not ActiveButtons[text]
-            ActiveButtons[text] = toggled
-            btn.BackgroundColor3 = toggled and C.Active or C.Inactive
-            
-            if CurrentPage == 1 then
-                if text == "Fly" then
-                    local box = Instance.new("TextBox")
-                    box.Size = UDim2.new(0, 40, 0, 20)
-                    box.Position = UDim2.new(1, -45, 0, 2)
-                    box.Text = tostring(States.FlySpeed)
-                    box.TextColor3 = Color3.fromRGB(255,0,0)
-                    box.BackgroundColor3 = Color3.fromRGB(0,0,0)
-                    box.BorderSizePixel = 1
-                    box.Parent = btn
-                    box.FocusLost:Connect(function()
-                        local n = tonumber(box.Text) or 50
-                        box.Text = tostring(n)
-                        States.FlySpeed = n
-                    end)
-                    if toggled then startFly() else stopFly() end
-                    
-                elseif text == "Noclip" then
-                    States.Noclip = toggled
-                    RunService.Stepped:Connect(function()
-                        if States.Noclip then
-                            for _,v in pairs(char():GetDescendants()) do
-                                if v:IsA("BasePart") then v.CanCollide = false end
-                            end
-                        end
-                    end)
-                    
-                elseif text == "Walkspeed" then
-                    local box = Instance.new("TextBox")
-                    box.Size = UDim2.new(0, 40, 0, 20)
-                    box.Position = UDim2.new(1, -45, 0, 2)
-                    box.Text = tostring(States.Walk)
-                    box.TextColor3 = Color3.fromRGB(255,0,0)
-                    box.BackgroundColor3 = Color3.fromRGB(0,0,0)
-                    box.BorderSizePixel = 1
-                    box.Parent = btn
-                    box.FocusLost:Connect(function()
-                        local n = tonumber(box.Text) or 16
-                        box.Text = tostring(n)
-                        setWalk(n)
-                    end)
-                    
-                elseif text == "Jump Power" then
-                    local box = Instance.new("TextBox")
-                    box.Size = UDim2.new(0, 40, 0, 20)
-                    box.Position = UDim2.new(1, -45, 0, 2)
-                    box.Text = tostring(States.Jump)
-                    box.TextColor3 = Color3.fromRGB(255,0,0)
-                    box.BackgroundColor3 = Color3.fromRGB(0,0,0)
-                    box.BorderSizePixel = 1
-                    box.Parent = btn
-                    box.FocusLost:Connect(function()
-                        local n = tonumber(box.Text) or 50
-                        box.Text = tostring(n)
-                        setJump(n)
-                    end)
-                    
-                elseif text == "Infinite Jump" then
-                    States.InfiniteJump = toggled
-                    
-                elseif text == "Speed Hack" then
-                    States.SpeedHack = toggled
-                    local box = Instance.new("TextBox")
-                    box.Size = UDim2.new(0, 40, 0, 20)
-                    box.Position = UDim2.new(1, -45, 0, 2)
-                    box.Text = tostring(States.SpeedMultiplier)
-                    box.TextColor3 = Color3.fromRGB(255,0,0)
-                    box.BackgroundColor3 = Color3.fromRGB(0,0,0)
-                    box.BorderSizePixel = 1
-                    box.Parent = btn
-                    box.FocusLost:Connect(function()
-                        local n = tonumber(box.Text) or 2
-                        box.Text = tostring(n)
-                        States.SpeedMultiplier = n
-                    end)
-                    
-                elseif text == "No Fall Damage" then
-                    setNoFallDamage(toggled)
-                    
-                elseif text == "Click TP" then
-                    States.ClickTPOn = toggled
-                    
-                elseif text == "Teleport To" then
+            if InstantActions[text] then
+                if text == "Teleport To" then
                     teleportToPlayer()
-                    
                 elseif text == "Bring Player" then
                     bringPlayer()
-                    
-                elseif text == "Anti-AFK" then
-                    if toggled then task.spawn(startAntiAFK) end
-                    States.AntiAFK = toggled
-                    
-                elseif text == "Spam Jump" then
-                    if toggled then task.spawn(startSpamJump) else States.SpamJump = false end
-                end
-                
-            elseif CurrentPage == 2 then
-                if text == "Kill All" then
-                    for _,p in pairs(Players:GetPlayers()) do
-                        if p ~= LocalPlayer and p.Character then
-                            flingKill(p)
-                            task.wait(0.3)
-                        end
-                    end
-                    
-                elseif text == "Kill Aura" then
-                    if toggled then task.spawn(startKillAura) else States.KillAura = false end
-                    
+                elseif text == "BTools" then
+                    giveBTools()
                 elseif text == "Server Kill" then
                     flingPlayer()
-                    
                 elseif text == "Fling Player" then
                     flingPlayer()
-                    
                 elseif text == "Fling All" then
                     for _,p in pairs(Players:GetPlayers()) do
                         if p ~= LocalPlayer and p.Character then
@@ -954,115 +928,17 @@ local function updatePage()
                             task.wait(0.2)
                         end
                     end
-                    
-                elseif text == "Freeze Player" then
-                    freezePlayer(toggled)
-                    
+                elseif text == "Kill All" then
+                    for _,p in pairs(Players:GetPlayers()) do
+                        if p ~= LocalPlayer and p.Character then
+                            flingKill(p)
+                            task.wait(0.3)
+                        end
+                    end
                 elseif text == "Spin Player" then
                     spinPlayer()
-                    
-                elseif text == "Orbit Player" then
-                    if toggled then task.spawn(orbitPlayer) else States.Orbiting = false end
-                    
-                elseif text == "God Mode" then
-                    States.God = toggled
-                    local h = hum()
-                    if h then
-                        h.MaxHealth = toggled and 1e9 or 100
-                        h.Health = h.MaxHealth
-                    end
-                    
-                elseif text == "Forcefield" then
-                    if toggled then
-                        Instance.new("ForceField", char())
-                    else
-                        local ff = char():FindFirstChildOfClass("ForceField")
-                        if ff then ff:Destroy() end
-                    end
-                    
-                elseif text == "Target Player" then
-                    local selector = Instance.new("Frame")
-                    selector.Size = UDim2.new(0, 200, 0, 300)
-                    selector.Position = UDim2.new(0.5, -100, 0.5, -150)
-                    selector.BackgroundColor3 = C.BG
-                    selector.BorderColor3 = C.Border
-                    selector.BorderSizePixel = 2
-                    selector.Parent = gui
-                    
-                    local title = style("Select Target", selector, UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, 0), false)
-                    
-                    local scroll = Instance.new("ScrollingFrame", selector)
-                    scroll.Size = UDim2.new(1, -10, 1, -70)
-                    scroll.Position = UDim2.new(0, 5, 0, 35)
-                    scroll.BackgroundColor3 = C.BG
-                    scroll.BorderColor3 = C.Border
-                    scroll.ScrollBarThickness = 6
-                    
-                    local layout = Instance.new("UIListLayout", scroll)
-                    layout.Padding = UDim.new(0, 2)
-                    
-                    for _,p in pairs(Players:GetPlayers()) do
-                        if p ~= LocalPlayer then
-                            local pbtn = style(p.Name, scroll, UDim2.new(1, -10, 0, 25), nil, true)
-                            pbtn.MouseButton1Click:Connect(function()
-                                States.TargetPlayer = p
-                                selector:Destroy()
-                                btn.Text = "Target: " .. p.Name
-                            end)
-                        end
-                    end
-                    
-                    local close = style("Close", selector, UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 1, -30), true)
-                    close.MouseButton1Click:Connect(function() selector:Destroy() end)
-                end
-                
-            elseif CurrentPage == 3 then
-                if text == "ESP Box" then
-                    States.ESPBox = toggled
-                    if toggled then setupESP() end
-                    
-                elseif text == "ESP Name" then
-                    States.ESPName = toggled
-                    if toggled then setupESP() end
-                    
-                elseif text == "ESP 2D" then
-                    States.ESP2D = toggled
-                    if toggled then setupESP() end
-                    
-                elseif text == "Tracers" then
-                    States.Tracers = toggled
-                    if toggled then setupESP() end
-                    
-                elseif text == "Fullbright" then
-                    setFullbright(toggled)
-                    
-                elseif text == "X-Ray" then
-                    setXRay(toggled)
-                    
                 elseif text == "Remove Fog" then
                     removeFog()
-                    
-                elseif text == "Particle Emit" then
-                    if toggled then
-                        createParticleEmitter("Self")
-                    else
-                        for _,p in pairs(ParticleEmitters) do
-                            if p then p:Destroy() end
-                        end
-                        ParticleEmitters = {}
-                    end
-                    
-                elseif text == "Texture Replace" then
-                    replaceTextures(toggled)
-                    
-                elseif text == "Invisible" then
-                    setInvisible(toggled)
-                end
-                
-            elseif CurrentPage == 4 or CurrentPage == 5 then
-                if text == "BTools" then
-                    giveBTools()
-                    
                 elseif text == "Server List" then
                     local serverList = Instance.new("Frame")
                     serverList.Size = UDim2.new(0, 250, 0, 350)
@@ -1091,9 +967,214 @@ local function updatePage()
                     
                     local close = style("Close", serverList, UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 1, -30), true)
                     close.MouseButton1Click:Connect(function() serverList:Destroy() end)
-                    
                 else
                     giveTool(text)
+                end
+                return
+            end
+            
+            local toggled = not ActiveButtons[text]
+            ActiveButtons[text] = toggled
+            btn.BackgroundColor3 = toggled and C.Active or C.Inactive
+            
+            if text == "Fly" then
+                local box = Instance.new("TextBox")
+                box.Size = UDim2.new(0, 40, 0, 20)
+                box.Position = UDim2.new(1, -45, 0, 2)
+                box.Text = tostring(States.FlySpeed)
+                box.TextColor3 = Color3.fromRGB(255,0,0)
+                box.BackgroundColor3 = Color3.fromRGB(0,0,0)
+                box.BorderSizePixel = 1
+                box.Parent = btn
+                box.FocusLost:Connect(function()
+                    local n = tonumber(box.Text) or 50
+                    box.Text = tostring(n)
+                    States.FlySpeed = n
+                end)
+                if toggled then startFly() else stopFly() end
+                
+            elseif text == "Noclip" then
+                States.Noclip = toggled
+                RunService.Stepped:Connect(function()
+                    if States.Noclip then
+                        for _,v in pairs(char():GetDescendants()) do
+                            if v:IsA("BasePart") then v.CanCollide = false end
+                        end
+                    end
+                end)
+                
+            elseif text == "Walkspeed" then
+                local box = Instance.new("TextBox")
+                box.Size = UDim2.new(0, 40, 0, 20)
+                box.Position = UDim2.new(1, -45, 0, 2)
+                box.Text = tostring(States.Walk)
+                box.TextColor3 = Color3.fromRGB(255,0,0)
+                box.BackgroundColor3 = Color3.fromRGB(0,0,0)
+                box.BorderSizePixel = 1
+                box.Parent = btn
+                box.FocusLost:Connect(function()
+                    local n = tonumber(box.Text) or 16
+                    box.Text = tostring(n)
+                    setWalk(n)
+                end)
+                
+            elseif text == "Jump Power" then
+                local box = Instance.new("TextBox")
+                box.Size = UDim2.new(0, 40, 0, 20)
+                box.Position = UDim2.new(1, -45, 0, 2)
+                box.Text = tostring(States.Jump)
+                box.TextColor3 = Color3.fromRGB(255,0,0)
+                box.BackgroundColor3 = Color3.fromRGB(0,0,0)
+                box.BorderSizePixel = 1
+                box.Parent = btn
+                box.FocusLost:Connect(function()
+                    local n = tonumber(box.Text) or 50
+                    box.Text = tostring(n)
+                    setJump(n)
+                end)
+                
+            elseif text == "Infinite Jump" then
+                States.InfiniteJump = toggled
+                
+            elseif text == "Speed Hack" then
+                States.SpeedHack = toggled
+                local box = Instance.new("TextBox")
+                box.Size = UDim2.new(0, 40, 0, 20)
+                box.Position = UDim2.new(1, -45, 0, 2)
+                box.Text = tostring(States.SpeedMultiplier)
+                box.TextColor3 = Color3.fromRGB(255,0,0)
+                box.BackgroundColor3 = Color3.fromRGB(0,0,0)
+                box.BorderSizePixel = 1
+                box.Parent = btn
+                box.FocusLost:Connect(function()
+                    local n = tonumber(box.Text) or 2
+                    box.Text = tostring(n)
+                    States.SpeedMultiplier = n
+                end)
+                
+            elseif text == "No Fall Damage" then
+                setNoFallDamage(toggled)
+                
+            elseif text == "Click TP" then
+                States.ClickTPOn = toggled
+                
+            elseif text == "Anti-AFK" then
+                if toggled then task.spawn(startAntiAFK) end
+                States.AntiAFK = toggled
+                
+            elseif text == "Spam Jump" then
+                if toggled then task.spawn(startSpamJump) else States.SpamJump = false end
+                
+            elseif text == "Kill Aura" then
+                if toggled then task.spawn(startKillAura) else States.KillAura = false end
+                
+            elseif text == "Freeze Player" then
+                freezePlayer(toggled)
+                
+            elseif text == "Orbit Player" then
+                if toggled then task.spawn(orbitPlayer) else States.Orbiting = false end
+                
+            elseif text == "God Mode" then
+                States.God = toggled
+                local h = hum()
+                if h then
+                    h.MaxHealth = toggled and 1e9 or 100
+                    h.Health = h.MaxHealth
+                end
+                
+            elseif text == "Forcefield" then
+                if toggled then
+                    Instance.new("ForceField", char())
+                else
+                    local ff = char():FindFirstChildOfClass("ForceField")
+                    if ff then ff:Destroy() end
+                end
+                
+            elseif text == "Target Player" then
+                local selector = Instance.new("Frame")
+                selector.Size = UDim2.new(0, 200, 0, 300)
+                selector.Position = UDim2.new(0.5, -100, 0.5, -150)
+                selector.BackgroundColor3 = C.BG
+                selector.BorderColor3 = C.Border
+                selector.BorderSizePixel = 2
+                selector.Parent = gui
+                
+                local title = style("Select Target", selector, UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, 0), false)
+                
+                local scroll = Instance.new("ScrollingFrame", selector)
+                scroll.Size = UDim2.new(1, -10, 1, -70)
+                scroll.Position = UDim2.new(0, 5, 0, 35)
+                scroll.BackgroundColor3 = C.BG
+                scroll.BorderColor3 = C.Border
+                scroll.ScrollBarThickness = 6
+                
+                local layout = Instance.new("UIListLayout", scroll)
+                layout.Padding = UDim.new(0, 2)
+                
+                for _,p in pairs(Players:GetPlayers()) do
+                    if p ~= LocalPlayer then
+                        local pbtn = style(p.Name, scroll, UDim2.new(1, -10, 0, 25), nil, true)
+                        pbtn.MouseButton1Click:Connect(function()
+                            States.TargetPlayer = p
+                            selector:Destroy()
+                            btn.Text = "Target: " .. p.Name
+                        end)
+                    end
+                end
+                
+                local close = style("Close", selector, UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 1, -30), true)
+                close.MouseButton1Click:Connect(function() selector:Destroy() end)
+                
+            elseif text == "ESP Box" then
+                States.ESPBox = toggled
+                if toggled then setupESP() end
+                
+            elseif text == "ESP Name" then
+                States.ESPName = toggled
+                if toggled then setupESP() end
+                
+            elseif text == "ESP 2D" then
+                States.ESP2D = toggled
+                if toggled then setupESP() end
+                
+            elseif text == "Tracers" then
+                States.Tracers = toggled
+                if toggled then setupESP() end
+                
+            elseif text == "Fullbright" then
+                setFullbright(toggled)
+                
+            elseif text == "X-Ray" then
+                setXRay(toggled)
+                
+            elseif text == "Particle Emit" then
+                if toggled then
+                    createParticleEmitter("Self")
+                else
+                    for _,p in pairs(ParticleEmitters) do
+                        if p then p:Destroy() end
+                    end
+                    ParticleEmitters = {}
+                end
+                
+            elseif text == "Texture Replace" then
+                replaceTextures(toggled)
+                
+            elseif text == "Invisible" then
+                setInvisible(toggled)
+                
+            elseif text == "Seizure" then
+                if toggled then
+                    task.spawn(startSeizure)
+                else
+                    stopSeizure()
+                end
+                
+            elseif text == "Freecam" then
+                if toggled then
+                    task.spawn(startFreecam)
+                else
+                    States.Freecam = false
                 end
             end
         end)
