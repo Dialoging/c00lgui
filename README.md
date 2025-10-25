@@ -9,4 +9,5 @@ Tools like Knife, Katana etc kinda work, same with btools.
 Fly, TP, NoClip, and most of those modules are ServerSided/FE
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Dialoging/c00lgui/refs/heads/main/c00lgui.lua"))()
-TEMPORARILY DOWN BECAUSE RAWFILE WONT UPLOAD
+
+This is a VERY powerful script, use wisely, it has working teleportation modules, movement, and way more.
